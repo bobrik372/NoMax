@@ -8,4 +8,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://YOUR-ANUBIS-API.onrender.com
+        fromService:
+          name: anubis-api
+          type: web
+          property: url

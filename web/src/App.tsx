@@ -46,19 +46,31 @@ export function App() {
   }, [socket, active, token])
 
   async function register() {
-    const r = await fetch(`${API_URL}/api/auth/register`, { method: 'POST' })
-    const data = await r.json()
-    setPassphrase(data.passphrase)
+    try {
+      if (!API_URL) throw new Error('API URL is not configured')
+      const r = await fetch(`${API_URL}/api/auth/register`, { method: 'POST' })
+      if (!r.ok) throw new Error('Register failed')
+      const data = await r.json()
+      setPassphrase(data.passphrase)
+    } catch (e:any) {
+      alert(`Ошибка регистрации: ${e.message}`)
+    }
   }
   async function login() {
-    const r = await fetch(`${API_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passphrase }) })
-    const data = await r.json()
-    if (data.accessToken) {
-      setToken(data.accessToken)
-      localStorage.setItem('token', data.accessToken)
-      setMe(data.user)
-    } else {
-      alert('Ошибка входа')
+    try {
+      if (!API_URL) throw new Error('API URL is not configured')
+      const r = await fetch(`${API_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passphrase }) })
+      if (!r.ok) throw new Error('Login failed')
+      const data = await r.json()
+      if (data.accessToken) {
+        setToken(data.accessToken)
+        localStorage.setItem('token', data.accessToken)
+        setMe(data.user)
+      } else {
+        throw new Error('Bad response')
+      }
+    } catch (e:any) {
+      alert(`Ошибка входа: ${e.message}`)
     }
   }
   function logout() {
@@ -67,7 +79,7 @@ export function App() {
 
   // load me + inbox when authorized
   useEffect(() => {
-    if (!token) return
+    if (!token || !API_URL) return
     ;(async () => {
       const mh = await fetch(`${API_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
       if (mh.ok) setMe(await mh.json())
@@ -79,6 +91,7 @@ export function App() {
   // open chat and load messages
   async function openChat(username: string) {
     setActive(username)
+    if (!API_URL) { alert('API URL не настроен'); return }
     const r = await fetch(`${API_URL}/api/messages?with=${encodeURIComponent(username)}&limit=50`, { headers: { Authorization: `Bearer ${token}` } })
     if (r.ok) setMessages(await r.json())
   }
@@ -86,6 +99,7 @@ export function App() {
   // send message
   async function send() {
     if (!text.trim() || !active) return
+    if (!API_URL) { alert('API URL не настроен'); return }
     const r = await fetch(`${API_URL}/api/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ to: active, type: 'text', text }) })
     if (r.ok) {
       const msg = await r.json();
@@ -101,6 +115,7 @@ export function App() {
   async function doSearch(q: string) {
     setSearch(q)
     if (!q) { setResults([]); return }
+    if (!API_URL) return
     const r = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${token}` } })
     if (r.ok) setResults(await r.json())
   }
