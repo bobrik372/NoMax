@@ -1,0 +1,22 @@
+{
+  "name": "anubis-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "bootstrap": "npm install --workspaces",
+    "build": "npm run -ws build",
+    "lint": "npm run -ws lint",
+    "typecheck": "npm run -ws typecheck",
+    "dev": "concurrently \"npm:dev:web\" \"npm:dev:server\"",
+    "dev:web": "npm --workspace web run dev",
+    "dev:server": "npm --workspace server run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+dist/
+build/
+.turbo/
+.DS_Store
+*.log
+server/uploads/
+server/prisma/dev.db*
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+web/.vite/
