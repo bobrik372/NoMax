@@ -3,7 +3,6 @@ services:
     name: anubis-api
     env: node
     plan: free
-    rootDir: server
     buildCommand: |
       npm ci
       npm run build
@@ -23,21 +22,6 @@ services:
       - name: uploads
         mountPath: /opt/uploads
         sizeGB: 1
-
-  - type: web
-    env: static
-    name: anubis-web
-    rootDir: web
-    buildCommand: |
-      npm ci
-      npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: anubis-api
-          type: web
-          property: url
 
 databases:
   - name: anubis-db

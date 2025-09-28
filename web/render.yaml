@@ -1,0 +1,11 @@
+services:
+  - type: web
+    env: static
+    name: anubis-web
+    buildCommand: |
+      npm ci
+      npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://YOUR-ANUBIS-API.onrender.com
