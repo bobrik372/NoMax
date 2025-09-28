@@ -28,11 +28,22 @@ export function App() {
 
   useEffect(() => {
     if (!socket) return
-    socket.on('message', (msg) => {
-      console.log('WS message', msg)
-    })
-    return () => { socket.close() }
-  }, [socket])
+    const onMsg = (msg: any) => {
+      // refresh inbox
+      (async () => {
+        if (token) {
+          const ih = await fetch(`${API_URL}/api/inbox`, { headers: { Authorization: `Bearer ${token}` } })
+          if (ih.ok) setInbox(await ih.json())
+        }
+      })()
+      // if active chat matches, append
+      if (active && (msg.senderUsername === active || msg.recipientUsername === active)) {
+        setMessages((m:any[]) => [...m, { ...msg, fromMe: false }])
+      }
+    }
+    socket.on('message', onMsg)
+    return () => { socket.off('message', onMsg); socket.close() }
+  }, [socket, active, token])
 
   async function register() {
     const r = await fetch(`${API_URL}/api/auth/register`, { method: 'POST' })
