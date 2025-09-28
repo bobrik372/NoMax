@@ -127,6 +127,18 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
+// Current user
+app.get('/api/me', authMiddleware, async (req: any, res) => {
+  const u = req.user;
+  res.json({
+    username: u.username,
+    displayName: u.displayName,
+    nickname: u.nickname,
+    avatarUrl: u.avatarUrl ?? null,
+    settings: u.settings ? JSON.parse(u.settings) : {},
+  });
+});
+
 // Profile update (username/displayName/nickname/avatar)
 app.put('/api/me', authMiddleware, upload.single('avatar'), async (req: any, res) => {
   const body = z.object({
@@ -260,6 +272,54 @@ app.post('/api/messages', authMiddleware, async (req: any, res) => {
   } as const;
   io.to(recipient.username).emit('message', payload);
   res.json(payload);
+});
+
+// Message history with a user
+app.get('/api/messages', authMiddleware, async (req: any, res) => {
+  const withUsername = String(req.query.with || '');
+  const limit = Math.min(Number(req.query.limit || 30), 100);
+  const before = req.query.before ? new Date(String(req.query.before)) : undefined;
+  if (!withUsername) return res.status(400).json({ error: 'with_required' });
+  const peer = await prisma.user.findUnique({ where: { username: withUsername } });
+  if (!peer) return res.status(404).json({ error: 'not_found' });
+  const chatId = [req.user.id, peer.id].sort().join('-');
+  const where: any = { chatId };
+  if (before) where.createdAt = { lt: before };
+  const msgs = await prisma.message.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
+  res.json(msgs.reverse());
+});
+
+// Inbox: last message per chat
+app.get('/api/inbox', authMiddleware, async (req: any, res) => {
+  const mine = req.user.id as string;
+  const recent = await prisma.message.findMany({
+    where: { OR: [{ senderId: mine }, { recipientId: mine }] },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+  const byChat: Record<string, typeof recent[number]> = {};
+  for (const m of recent) if (!byChat[m.chatId]) byChat[m.chatId] = m;
+  const items = await Promise.all(Object.values(byChat).map(async (m) => {
+    const peerId = m.senderId === mine ? m.recipientId : m.senderId;
+    const peer = await prisma.user.findUnique({ where: { id: peerId }, select: { username: true, displayName: true, nickname: true, avatarUrl: true } });
+    return {
+      chatId: m.chatId,
+      peer,
+      lastMessage: {
+        id: m.id,
+        type: m.type,
+        text: m.text,
+        mediaUrl: m.mediaUrl,
+        createdAt: m.createdAt,
+        fromMe: m.senderId === mine,
+      }
+    };
+  }));
+  res.json(items);
 });
 
 io.on('connection', (socket) => {

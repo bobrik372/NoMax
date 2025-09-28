@@ -15,7 +15,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase: 
+        fromDatabase:
           name: anubis-db
           property: connectionString
 
@@ -29,11 +29,10 @@ services:
     staticPublishPath: web/dist
     envVars:
       - key: VITE_API_URL
-fromService:
-name: anubis-api
-type: web
-property: url
-        value: http://${anubis-api.host}:${anubis-api.port}
+        fromService:
+          name: anubis-api
+          type: web
+          property: url
 
 databases:
   - name: anubis-db
