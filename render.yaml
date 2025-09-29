@@ -29,10 +29,11 @@ services:
     staticPublishPath: web/dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: anubis-api
-          type: web
-          property: url
+        value: https://anubis-api-0i1y.onrender.com
+    routes:
+      - type: rewrite
+        source: /.*
+        destination: /index.html
 
 databases:
   - name: anubis-db
