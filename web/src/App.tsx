@@ -1,22 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import { API_URL } from './config'
 
 const PRIMARY = '#6f0035'
 const SECONDARY = '#531a50'
 
-export function App() {
+function LoginView({ onLogged }: { onLogged: () => void }) {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [theme, setTheme] = useState<'light'|'dark'>(localStorage.getItem('theme') as any || 'light')
   const [passphrase, setPassphrase] = useState('')
   const [me, setMe] = useState<any>(null)
   const [lang, setLang] = useState<'ru'|'en'>(localStorage.getItem('lang') as any || 'ru')
-  const [inbox, setInbox] = useState<any[]>([])
-  const [active, setActive] = useState<string | null>(null) // peer username
-  const [messages, setMessages] = useState<any[]>([])
-  const [text, setText] = useState('')
-  const [search, setSearch] = useState('')
-  const [results, setResults] = useState<any[]>([])
+  const navigate = useNavigate()
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -24,38 +20,9 @@ export function App() {
   }, [theme])
   useEffect(() => { localStorage.setItem('lang', lang) }, [lang])
 
-  const socket = useMemo(() => token ? io(API_URL, { autoConnect: true, auth: { token } }) : null, [token])
+  // no socket on login page
 
-  useEffect(() => {
-    if (!socket) return
-    const onMsg = (msg: any) => {
-      // refresh inbox
-      (async () => {
-        if (token) {
-          const ih = await fetch(`${API_URL}/api/inbox`, { headers: { Authorization: `Bearer ${token}` } })
-          if (ih.ok) setInbox(await ih.json())
-        }
-      })()
-      // if active chat matches, append
-      if (active && (msg.senderUsername === active || msg.recipientUsername === active)) {
-        setMessages((m:any[]) => [...m, { ...msg, fromMe: false }])
-      }
-    }
-    socket.on('message', onMsg)
-    return () => { socket.off('message', onMsg); socket.close() }
-  }, [socket, active, token])
-
-  async function register() {
-    try {
-      if (!API_URL) throw new Error('API URL is not configured')
-      const r = await fetch(`${API_URL}/api/auth/register`, { method: 'POST' })
-      if (!r.ok) throw new Error('Register failed')
-      const data = await r.json()
-      setPassphrase(data.passphrase)
-    } catch (e:any) {
-      alert(`Ошибка регистрации: ${e.message}`)
-    }
-  }
+  function goRegister() { navigate('/register') }
   async function login() {
     try {
       if (!API_URL) throw new Error('API URL is not configured')
@@ -66,6 +33,7 @@ export function App() {
         setToken(data.accessToken)
         localStorage.setItem('token', data.accessToken)
         setMe(data.user)
+        onLogged(); navigate('/chats')
       } else {
         throw new Error('Bad response')
       }
@@ -73,52 +41,7 @@ export function App() {
       alert(`Ошибка входа: ${e.message}`)
     }
   }
-  function logout() {
-    setToken(null); localStorage.removeItem('token'); setMe(null); setInbox([]); setActive(null); setMessages([])
-  }
-
-  // load me + inbox when authorized
-  useEffect(() => {
-    if (!token || !API_URL) return
-    ;(async () => {
-      const mh = await fetch(`${API_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
-      if (mh.ok) setMe(await mh.json())
-      const ih = await fetch(`${API_URL}/api/inbox`, { headers: { Authorization: `Bearer ${token}` } })
-      if (ih.ok) setInbox(await ih.json())
-    })()
-  }, [token])
-
-  // open chat and load messages
-  async function openChat(username: string) {
-    setActive(username)
-    if (!API_URL) { alert('API URL не настроен'); return }
-    const r = await fetch(`${API_URL}/api/messages?with=${encodeURIComponent(username)}&limit=50`, { headers: { Authorization: `Bearer ${token}` } })
-    if (r.ok) setMessages(await r.json())
-  }
-
-  // send message
-  async function send() {
-    if (!text.trim() || !active) return
-    if (!API_URL) { alert('API URL не настроен'); return }
-    const r = await fetch(`${API_URL}/api/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ to: active, type: 'text', text }) })
-    if (r.ok) {
-      const msg = await r.json();
-      setMessages((m)=>[...m, { ...msg, fromMe: true }]);
-      setText('')
-      // refresh inbox ordering
-      const ih = await fetch(`${API_URL}/api/inbox`, { headers: { Authorization: `Bearer ${token}` } })
-      if (ih.ok) setInbox(await ih.json())
-    }
-  }
-
-  // search user
-  async function doSearch(q: string) {
-    setSearch(q)
-    if (!q) { setResults([]); return }
-    if (!API_URL) return
-    const r = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${token}` } })
-    if (r.ok) setResults(await r.json())
-  }
+  // login page: no inbox/chat logic here
 
   const t = (ru: string, en: string) => lang === 'ru' ? ru : en
 
@@ -136,68 +59,16 @@ export function App() {
         </button>
       </header>
       <main>
-        {!token ? (
-          <section className="card">
-            <h2>{t('Вход','Login')}</h2>
-            <div className="row">
-              <input value={passphrase} onChange={e=>setPassphrase(e.target.value)} placeholder={t('пароль-фраза','passphrase')} />
-              <button onClick={login}>{t('Войти','Login')}</button>
-            </div>
-            <div className="row">
-              <button onClick={register}>{t('Зарегистрироваться','Register')}</button>
-              {passphrase && <code className="secret">{passphrase}</code>}
-            </div>
-          </section>
-        ) : (
-          <div className="layout">
-            <aside>
-              <div className="me">
-                <div className="name">{me?.displayName || me?.username}</div>
-                <button className="ghost" onClick={logout}>{t('Выйти','Logout')}</button>
-              </div>
-              <div className="search">
-                <input value={search} onChange={e=>doSearch(e.target.value)} placeholder={t('Поиск @имени или !ника','Search @username or !nick')} />
-                {!!results.length && (
-                  <div className="dropdown">
-                    {results.map((u)=> (
-                      <div key={u.username} className="dropdown-item" onClick={()=>{ openChat(u.username); setResults([]); setSearch('') }}>
-                        <b>@{u.username}</b> <span>{u.displayName}</span> <i>{u.nickname}</i>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="list">
-                {inbox.map((c)=> (
-                  <div key={c.chatId} className={`chat ${active===c.peer.username?'active':''}`} onClick={()=>openChat(c.peer.username)}>
-                    <div className="title">{c.peer.displayName || c.peer.username}</div>
-                    <div className="last">{c.lastMessage?.text || c.lastMessage?.type}</div>
-                  </div>
-                ))}
-              </div>
-            </aside>
-            <section className="conversation">
-              {active ? (
-                <>
-                  <div className="conv-header">@{active}</div>
-                  <div className="messages">
-                    {messages.map((m)=> (
-                      <div key={m.id} className={`msg ${m.fromMe ? 'me' : 'peer'}`}>
-                        {m.text}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="composer">
-                    <input value={text} onChange={e=>setText(e.target.value)} placeholder={t('Сообщение...','Message...')} onKeyDown={(e)=>{ if(e.key==='Enter') send() }} />
-                    <button onClick={send}>{t('Отправить','Send')}</button>
-                  </div>
-                </>
-              ) : (
-                <div className="empty">{t('Выберите чат или найдите пользователя','Pick a chat or search a user')}</div>
-              )}
-            </section>
+        <section className="card">
+          <h2>{t('Вход','Login')}</h2>
+          <div className="row">
+            <input value={passphrase} onChange={e=>setPassphrase(e.target.value)} placeholder={t('пароль-фраза','passphrase')} />
+            <button onClick={login}>{t('Войти','Login')}</button>
           </div>
-        )}
+          <div className="row">
+            <button onClick={goRegister}>{t('Зарегистрироваться','Register')}</button>
+          </div>
+        </section>
       </main>
       <style>{`
         :root { --primary: ${PRIMARY}; --secondary: ${SECONDARY}; --bg: #ffffff; --fg: #111; }
@@ -235,6 +106,153 @@ export function App() {
         .composer { display:flex; gap:8px; padding:8px; border-top:1px solid #00000011; }
         .empty { margin:auto; opacity:0.7; }
       `}</style>
+    </div>
+  )
+}
+
+function RegisterView() {
+  const [pass, setPass] = useState<string>('')
+  const [err, setErr] = useState<string>('')
+  const navigate = useNavigate()
+  async function generate() {
+    try {
+      if (!API_URL) throw new Error('API URL is not configured')
+      const r = await fetch(`${API_URL}/api/auth/register`, { method: 'POST' })
+      if (!r.ok) throw new Error('Register failed')
+      const data = await r.json(); setPass(data.passphrase)
+    } catch (e:any) { setErr(e.message) }
+  }
+  useEffect(() => { generate() }, [])
+  async function loginNow() {
+    try {
+      const r = await fetch(`${API_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passphrase: pass }) })
+      if (!r.ok) throw new Error('Login failed')
+      const data = await r.json()
+      localStorage.setItem('token', data.accessToken)
+      navigate('/chats')
+    } catch (e:any) { setErr(e.message) }
+  }
+  return (
+    <div className="app">
+      <header><h1>Anubis</h1></header>
+      <main>
+        <section className="card">
+          <h2>Регистрация</h2>
+          <p>Ваша пароль‑фраза:</p>
+          <code className="secret">{pass || '...'}</code>
+          <div className="row">
+            <button onClick={generate}>Сгенерировать заново</button>
+            <button onClick={loginNow} disabled={!pass}>Войти с этой фразой</button>
+          </div>
+          {err && <p style={{color:'tomato'}}>{err}</p>}
+        </section>
+      </main>
+    </div>
+  )
+}
+
+function ChatsView() {
+  const [token] = useState<string | null>(localStorage.getItem('token'))
+  const [me, setMe] = useState<any>(null)
+  const [inbox, setInbox] = useState<any[]>([])
+  const [active, setActive] = useState<string | null>(null)
+  const [messages, setMessages] = useState<any[]>([])
+  const [text, setText] = useState('')
+  const [search, setSearch] = useState('')
+  const [results, setResults] = useState<any[]>([])
+  const navigate = useNavigate()
+  useEffect(() => { if (!token) navigate('/') }, [])
+  const socket = useMemo(() => token ? io(API_URL, { autoConnect: true, auth: { token } }) : null, [token])
+  useEffect(() => {
+    if (!socket) return
+    const onMsg = (msg: any) => {
+      (async () => {
+        if (token) {
+          const ih = await fetch(`${API_URL}/api/inbox`, { headers: { Authorization: `Bearer ${token}` } })
+          if (ih.ok) setInbox(await ih.json())
+        }
+      })()
+      if (active && (msg.senderUsername === active || msg.recipientUsername === active)) {
+        setMessages((m:any[]) => [...m, { ...msg, fromMe: false }])
+      }
+    }
+    socket.on('message', onMsg)
+    return () => { socket.off('message', onMsg); socket.close() }
+  }, [socket, active, token])
+  useEffect(() => { (async () => {
+    if (!token || !API_URL) return
+    const mh = await fetch(`${API_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } }); if (mh.ok) setMe(await mh.json())
+    const ih = await fetch(`${API_URL}/api/inbox`, { headers: { Authorization: `Bearer ${token}` } }); if (ih.ok) setInbox(await ih.json())
+  })() }, [token])
+  function logout(){ localStorage.removeItem('token'); navigate('/') }
+  async function openChat(username: string){ setActive(username); if (!API_URL) return; const r = await fetch(`${API_URL}/api/messages?with=${encodeURIComponent(username)}&limit=50`, { headers: { Authorization: `Bearer ${token}` } }); if (r.ok) setMessages(await r.json()) }
+  async function send(){ if (!text.trim()||!active||!API_URL) return; const r = await fetch(`${API_URL}/api/messages`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${token}`}, body: JSON.stringify({ to: active, type:'text', text }) }); if (r.ok){ const msg = await r.json(); setMessages(m=>[...m,{...msg, fromMe:true}]); setText(''); const ih = await fetch(`${API_URL}/api/inbox`, { headers:{ Authorization:`Bearer ${token}` } }); if (ih.ok) setInbox(await ih.json()) } }
+  async function doSearch(q:string){ setSearch(q); if(!q||!API_URL) { setResults([]); return } const r = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(q)}`, { headers:{ Authorization:`Bearer ${token}` } }); if(r.ok) setResults(await r.json()) }
+  const t=(ru:string,en:string)=>ru
+  return (
+    <div className="layout">
+      <aside>
+        <div className="me">
+          <div className="name">{me?.displayName || me?.username}</div>
+          <button className="ghost" onClick={logout}>{t('Выйти','Logout')}</button>
+        </div>
+        <div className="search">
+          <input value={search} onChange={e=>doSearch(e.target.value)} placeholder={t('Поиск @имени или !ника','Search')} />
+          {!!results.length && (
+            <div className="dropdown">
+              {results.map((u)=> (
+                <div key={u.username} className="dropdown-item" onClick={()=>{ openChat(u.username); setResults([]); setSearch('') }}>
+                  <b>@{u.username}</b> <span>{u.displayName}</span> <i>{u.nickname}</i>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="list">
+          {inbox.map((c)=> (
+            <div key={c.chatId} className={`chat ${active===c.peer.username?'active':''}`} onClick={()=>openChat(c.peer.username)}>
+              <div className="title">{c.peer.displayName || c.peer.username}</div>
+              <div className="last">{c.lastMessage?.text || c.lastMessage?.type}</div>
+            </div>
+          ))}
+        </div>
+      </aside>
+      <section className="conversation">
+        {active ? (
+          <>
+            <div className="conv-header">@{active}</div>
+            <div className="messages">
+              {messages.map((m)=> (<div key={m.id} className={`msg ${m.fromMe ? 'me' : 'peer'}`}>{m.text}</div>))}
+            </div>
+            <div className="composer">
+              <input value={text} onChange={e=>setText(e.target.value)} placeholder={t('Сообщение...','Message...')} onKeyDown={(e)=>{ if(e.key==='Enter') send() }} />
+              <button onClick={send}>{t('Отправить','Send')}</button>
+            </div>
+          </>
+        ) : (<div className="empty">{t('Выберите чат или найдите пользователя','Pick chat')}</div>)}
+      </section>
+    </div>
+  )
+}
+
+export function App(){
+  const [theme, setTheme] = useState<'light'|'dark'>(localStorage.getItem('theme') as any || 'light')
+  useEffect(()=>{ document.documentElement.dataset.theme=theme; localStorage.setItem('theme', theme) },[theme])
+  return (
+    <div className="app">
+      <header>
+        <h1>Anubis</h1>
+        <div className="spacer" />
+        <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+          {theme === 'light' ? 'Тёмная' : 'Светлая'}
+        </button>
+      </header>
+      <Routes>
+        <Route path="/" element={<LoginView onLogged={()=>{}} />} />
+        <Route path="/register" element={<RegisterView />} />
+        <Route path="/chats" element={<ChatsView />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   )
 }
