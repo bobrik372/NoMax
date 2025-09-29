@@ -29,7 +29,10 @@ services:
     staticPublishPath: web/dist
     envVars:
       - key: VITE_API_URL
-        value: http://${anubis-api.hostport}
+        fromService:
+          name: anubis-api
+          type: web
+          property: url
 
 databases:
   - name: anubis-db

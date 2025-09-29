@@ -46,67 +46,18 @@ function LoginView({ onLogged }: { onLogged: () => void }) {
   const t = (ru: string, en: string) => lang === 'ru' ? ru : en
 
   return (
-    <div className="app">
-      <header>
-        <h1>Anubis</h1>
-        <div className="spacer" />
-        <select value={lang} onChange={e=>setLang(e.target.value as any)}>
-          <option value="ru">RU</option>
-          <option value="en">EN</option>
-        </select>
-        <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-          {theme === 'light' ? t('Тёмная','Dark') : t('Светлая','Light')}
-        </button>
-      </header>
-      <main>
-        <section className="card">
-          <h2>{t('Вход','Login')}</h2>
-          <div className="row">
-            <input value={passphrase} onChange={e=>setPassphrase(e.target.value)} placeholder={t('пароль-фраза','passphrase')} />
-            <button onClick={login}>{t('Войти','Login')}</button>
-          </div>
-          <div className="row">
-            <button onClick={goRegister}>{t('Зарегистрироваться','Register')}</button>
-          </div>
-        </section>
-      </main>
-      <style>{`
-        :root { --primary: ${PRIMARY}; --secondary: ${SECONDARY}; --bg: #ffffff; --fg: #111; }
-        :root[data-theme="dark"] { --bg: #0f0f12; --fg: #eee; }
-        * { box-sizing: border-box; }
-        body, html, #root { margin:0; height:100%; }
-        .app { min-height:100%; background: var(--bg); color: var(--fg); font-family: Inter, system-ui, Arial; }
-        header { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #00000011; }
-        h1 { font-size:20px; color: var(--primary); }
-        .spacer { flex:1; }
-        button { background: var(--primary); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
-        button.ghost { background: transparent; color: var(--fg); border:1px solid #00000022; }
-        .card { max-width:720px; margin:24px auto; padding:16px; border:1px solid #00000011; border-radius:12px; background: #ffffff10; }
-        .row { display:flex; gap:8px; align-items:center; margin-top:8px; }
-        input { flex:1; padding:8px; border:1px solid #00000022; border-radius:8px; background:transparent; color:inherit; }
-        .secret { background:#00000011; padding:6px 8px; border-radius:6px; }
-        .layout { display:flex; height: calc(100vh - 58px); }
-        aside { width: 320px; border-right:1px solid #00000011; display:flex; flex-direction:column; }
-        .me { display:flex; align-items:center; gap:8px; padding:8px; justify-content:space-between; }
-        .search { padding:8px; position:relative; }
-        .dropdown { position:absolute; left:8px; right:8px; top:45px; background:#fff; color:#000; border:1px solid #00000022; border-radius:8px; max-height:240px; overflow:auto; z-index:10; }
-        :root[data-theme="dark"] .dropdown { background:#1e1e24; color:#fff; }
-        .dropdown-item { padding:8px; cursor:pointer; border-bottom:1px solid #00000011; }
-        .dropdown-item:hover { background:#0000000a; }
-        .list { overflow:auto; }
-        .chat { padding:10px 12px; border-bottom:1px solid #00000011; cursor:pointer; }
-        .chat.active { background:#00000008; }
-        .title { font-weight:600; }
-        .last { font-size:12px; opacity:0.7; }
-        .conversation { flex:1; display:flex; flex-direction:column; }
-        .conv-header { padding:10px 12px; border-bottom:1px solid #00000011; }
-        .messages { flex:1; overflow:auto; display:flex; flex-direction:column; gap:6px; padding:12px; }
-        .msg { max-width:70%; padding:8px 10px; border-radius:12px; background:#00000010; align-self:flex-start; }
-        .msg.me { background: var(--secondary); color:#fff; align-self:flex-end; }
-        .composer { display:flex; gap:8px; padding:8px; border-top:1px solid #00000011; }
-        .empty { margin:auto; opacity:0.7; }
-      `}</style>
-    </div>
+    <main>
+      <section className="card">
+        <h2>Вход</h2>
+        <div className="row">
+          <input value={passphrase} onChange={e=>setPassphrase(e.target.value)} placeholder={'пароль-фраза'} />
+          <button onClick={login}>Войти</button>
+        </div>
+        <div className="row">
+          <button onClick={goRegister}>Зарегистрироваться</button>
+        </div>
+      </section>
+    </main>
   )
 }
 
@@ -133,21 +84,18 @@ function RegisterView() {
     } catch (e:any) { setErr(e.message) }
   }
   return (
-    <div className="app">
-      <header><h1>Anubis</h1></header>
-      <main>
-        <section className="card">
-          <h2>Регистрация</h2>
-          <p>Ваша пароль‑фраза:</p>
-          <code className="secret">{pass || '...'}</code>
-          <div className="row">
-            <button onClick={generate}>Сгенерировать заново</button>
-            <button onClick={loginNow} disabled={!pass}>Войти с этой фразой</button>
-          </div>
-          {err && <p style={{color:'tomato'}}>{err}</p>}
-        </section>
-      </main>
-    </div>
+    <main>
+      <section className="card">
+        <h2>Регистрация</h2>
+        <p>Ваша пароль‑фраза:</p>
+        <code className="secret">{pass || '...'}</code>
+        <div className="row">
+          <button onClick={generate}>Сгенерировать заново</button>
+          <button onClick={loginNow} disabled={!pass}>Войти с этой фразой</button>
+        </div>
+        {err && <p style={{color:'tomato'}}>{err}</p>}
+      </section>
+    </main>
   )
 }
 
@@ -253,6 +201,42 @@ export function App(){
         <Route path="/chats" element={<ChatsView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <style>{`
+        :root { --primary: ${PRIMARY}; --secondary: ${SECONDARY}; --bg: #ffffff; --fg: #111; }
+        :root[data-theme="dark"] { --bg: #0f0f12; --fg: #eee; }
+        * { box-sizing: border-box; }
+        body, html, #root { margin:0; height:100%; }
+        .app { min-height:100%; background: var(--bg); color: var(--fg); font-family: Inter, system-ui, Arial; }
+        header { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #00000011; }
+        h1 { font-size:20px; color: var(--primary); }
+        .spacer { flex:1; }
+        button { background: var(--primary); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+        button.ghost { background: transparent; color: var(--fg); border:1px solid #00000022; }
+        .card { max-width:720px; margin:24px auto; padding:16px; border:1px solid #00000011; border-radius:12px; background: #ffffff10; }
+        .row { display:flex; gap:8px; align-items:center; margin-top:8px; }
+        input { flex:1; padding:8px; border:1px solid #00000022; border-radius:8px; background:transparent; color:inherit; }
+        .secret { background:#00000011; padding:6px 8px; border-radius:6px; }
+        .layout { display:flex; height: calc(100vh - 58px); }
+        aside { width: 320px; border-right:1px solid #00000011; display:flex; flex-direction:column; }
+        .me { display:flex; align-items:center; gap:8px; padding:8px; justify-content:space-between; }
+        .search { padding:8px; position:relative; }
+        .dropdown { position:absolute; left:8px; right:8px; top:45px; background:#fff; color:#000; border:1px solid #00000022; border-radius:8px; max-height:240px; overflow:auto; z-index:10; }
+        :root[data-theme="dark"] .dropdown { background:#1e1e24; color:#fff; }
+        .dropdown-item { padding:8px; cursor:pointer; border-bottom:1px solid #00000011; }
+        .dropdown-item:hover { background:#0000000a; }
+        .list { overflow:auto; }
+        .chat { padding:10px 12px; border-bottom:1px solid #00000011; cursor:pointer; }
+        .chat.active { background:#00000008; }
+        .title { font-weight:600; }
+        .last { font-size:12px; opacity:0.7; }
+        .conversation { flex:1; display:flex; flex-direction:column; }
+        .conv-header { padding:10px 12px; border-bottom:1px solid #00000011; }
+        .messages { flex:1; overflow:auto; display:flex; flex-direction:column; gap:6px; padding:12px; }
+        .msg { max-width:70%; padding:8px 10px; border-radius:12px; background:#00000010; align-self:flex-start; }
+        .msg.me { background: var(--secondary); color:#fff; align-self:flex-end; }
+        .composer { display:flex; gap:8px; padding:8px; border-top:1px solid #00000011; }
+        .empty { margin:auto; opacity:0.7; }
+      `}</style>
     </div>
   )
 }
