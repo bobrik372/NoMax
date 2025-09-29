@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -13,8 +16,10 @@ import fs from 'node:fs';
 import { z } from 'zod';
 import { Nickname, Username, DisplayName } from '@anubis/shared';
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(helmet());
+app.use(morgan('tiny'));
+app.use(cors({ origin: '*', credentials: false }));
+app.use(express.json({ limit: '2mb' }));
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, {
     cors: {
@@ -29,6 +34,21 @@ if (!fs.existsSync(path.resolve(UPLOAD_DIR))) {
     fs.mkdirSync(path.resolve(UPLOAD_DIR), { recursive: true });
 }
 app.use('/media', express.static(path.resolve(UPLOAD_DIR)));
+// Friendly root for API (avoid 404 when opening in browser)
+app.get('/', (_req, res) => {
+    res.status(200).json({
+        ok: true,
+        name: 'Anubis API',
+        version: process.env.npm_package_version || '0.1.0',
+        health: '/health',
+        docs: null,
+    });
+});
+// Health
+app.get('/health', (_req, res) => res.status(200).json({ ok: true }));
+// Rate limiting (auth & messaging endpoints)
+const authLimiter = rateLimit({ windowMs: 60_000, max: 60 });
+app.use('/api/', authLimiter);
 // Multer storage
 const storage = multer.diskStorage({
     destination: (_req, _file, cb) => {
